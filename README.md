@@ -1,63 +1,133 @@
-<img src="docs/digital_screen_1.jpg" alt="Clinical AI Hackathon" width="100%">
+# Clinical AI Extraction Pipeline
 
-# Clinical-AI Extraction Pipeline: Automating Oncology MDT Records
-
-[![Clinical AI](https://img.shields.io/badge/Domain-Healthcare%20AI-red.svg)](#)
-[![Python](https://img.shields.io/badge/Language-Python%203.9+-blue.svg)](#)
-[![Status](https://img.shields.io/badge/Status-Hackathon%20Baseline-success.svg)](#)
-
-## 🩺 The Clinical Challenge
-In modern oncology, **Multidisciplinary Team (MDT)** meetings are the gold standard for cancer treatment planning. However, the data captured during these sessions often remains "trapped" in semi-structured Word documents and fragmented systems like *Infoflex*. This creates a significant barrier for:
-*   **Clinical Research:** Manually auditing thousands of patient records for longitudinal studies.
-*   **Patient Outcomes:** Difficulty in tracking treatment efficacy across specific cancer cohorts.
-*   **Operational Efficiency:** Clinicians spend hours manually re-entering data into research databases.
-
-**Our Goal:** To develop a robust, AI-driven pipeline that transforms 50+ synthetic clinical MDT proformas into a structured, searchable, and longitudinal Excel database—aligning with NHS **Digital Technology Assessment Criteria (DTAC)**.
-
-## 🚀 Technical Architecture
-The system employs a multi-stage parsing strategy to extract high-fidelity clinical markers from complex medical narratives.
-
-*   **Extraction Engine:** Leveraging Python (`python-docx`, `pandas`) and LLM-driven heuristics (Claude, Gemini, Codex) to identify TNM staging, imaging dates, and pathology findings.
-*   **Normalization Logic:** Automated mapping of heterogeneous clinical terms (e.g., "CT Abdo/Pelvis", "CT CAP") to standardized database schemas.
-*   **Validation Layer:** A regression-tested suite ensuring that extracted data points (like endoscopy dates and biopsy results) maintain 90%+ accuracy against clinician-verified ground truth.
-
-## 📊 Performance Benchmarks
-Our current baseline represents a state-of-the-art improvement over traditional regex-based extraction:
-
-| Metric | Initial Baseline | Current Implementation (Team Version) |
-| :--- | :--- | :--- |
-| **Data Point Coverage** | 127 Cells | **675+ Cells** |
-| **Extraction Accuracy** | ~66% | **~91%** |
-| **Key Milestones** | Basic field detection | Advanced date inference & decision logic |
-
-## 🛠 Tech Stack
-*   **Languages:** Python
-*   **Libraries:** `openpyxl` (Excel Styling), `pandas` (Data Transformation), `python-docx` (Word Parsing), `pytest` (Clinical Validation)
-*   **Models:** Integrated API support for Anthropic Claude 3.5, Google Gemini Pro, and OpenAI Codex.
-*   **Compliance:** Designed with **SaMD (Software as a Medical Device)** and **DCB0129/DCB0160** safety standards in mind.
-
-## 📂 Repository Structure
-```text
-├── src/                      # Core extraction & normalization logic
-├── data/                     # Synthetic proformas & Ground Truth datasets
-├── tests/                    # Automated clinical validation suites
-├── baseline-solution/        # Comparative analysis of AI-driven extraction attempts
-├── docs/                     # Clinical specifications & regulatory considerations
-└── HACKATHON_SUMMARY.md      # Executive summary of project impact
-```
-
-## 👥 The Team
-This project was developed as part of the **Clinical AI Hackathon (March 2026)** by:
-*   **[Your Name]** - [Your Role: e.g., Lead AI Engineer / Data Scientist]
-*   **[Team Member Name]** - [Role]
-*   **[Team Member Name]** - [Role]
-
-*Special thanks to Dr. Anita Wale (St George’s University Hospitals NHS Foundation Trust) for the clinical problem statement and dataset.*
-
-## 📈 Future Roadmap
-*   **Treatment Specifics:** Improving extraction for complex Chemotherapy and Radiotherapy cycles.
-*   **Pathology Detail:** Enhancing NLP models to capture secondary MRI results and histology nuances.
-*   **FHIR Integration:** Moving from Excel to HL7 FHIR standards for direct EHR integration.
+An AI pipeline that extracts structured clinical data from NHS Multidisciplinary Team (MDT) meeting documents and populates a longitudinal patient database — turning unstructured Word documents into a searchable, auditable Excel database.
 
 ---
-*This project is a prototype designed to demonstrate the feasibility of AI-assisted clinical data structured. It uses 100% synthetic, anonymized data.*.
+
+## The Problem
+
+NHS oncology MDT meetings produce semi-structured Word documents containing patient histories, staging, imaging results, and treatment decisions. This data is effectively locked — difficult to query, audit, or use for research. Clinicians resort to maintaining manual databases, which is time-consuming and inconsistent.
+
+**The task:** given 50 synthetic MDT proformas, automatically extract and populate an 88-column longitudinal patient database matching a clinician-defined schema.
+
+*Problem statement by Dr Anita Wale, Consultant Radiologist, St George's University Hospitals NHS Foundation Trust.*
+
+---
+
+## Pipeline Architecture
+
+The final pipeline (v12) uses two stages:
+
+```
+Word Document (50 MDT cases)
+        │
+        ▼
+  [Stage 1: Claude Vision]
+  Each case rendered as an image and sent to a vision LLM.
+  Extracts demographics, staging, imaging, and MDT outcome into structured JSON.
+        │
+        ▼
+  JSON (one file per patient)
+        │
+        ▼
+  [Stage 2: Clinical Reasoning Auditor]
+  An LLM acting as a UK NHS colorectal consultant.
+  Cross-references the patient timeline to route facts to the correct columns
+  (e.g. distinguishes baseline MRI from post-treatment restaging MRI).
+  Flags any inferred values with cell comments for human review.
+        │
+        ▼
+  Final Excel Database (88 columns, 50 patient rows)
+```
+
+---
+
+## Results
+
+Validated against the source Word document across all 50 cases.
+
+| Group | Accuracy | Coverage |
+|---|---|---|
+| Demographics (MRN, NHS, DOB, Gender, MDT date) | **97.2%** | **100%** |
+| 1st MDT treatment approach | **94.7%** | 76.0% |
+| Histology / diagnosis | 36.8% | 71.7% |
+| Endoscopy | 80.0% | 15.6% |
+| Baseline CT | **100%** | 3.0% |
+| Baseline MRI | **100%** | 11.3% |
+| **Overall** | **76.6%** | — |
+
+**Key finding:** CT and MRI accuracy is 100% — when imaging values are extracted they are always correct. Coverage gaps trace to Stage 1 not separating imaging data into dedicated JSON fields. This is fixable with a prompt update.
+
+Error attribution: 78% of all errors originate at Stage 1 (vision extraction), 22% at Stage 2 (mapping). The pipeline is accurate when it extracts data; the primary improvement path is increasing Stage 1 coverage for imaging fields.
+
+---
+
+## Repository Structure
+
+```
+├── src/                    # Final pipeline (v12)
+│   ├── split_and_image.py           # Converts Word doc pages to images
+│   ├── stage1_claude_vision.py      # Vision extraction → JSON
+│   ├── stage2_clinical_reasoning_auditor.py  # LLM reasoning → Excel
+│   ├── stage2_hybrid_clinical_auditor.py     # Hybrid variant
+│   ├── fix_json_logic.py            # JSON repair utilities
+│   └── config.py                    # API keys and paths
+├── data/
+│   ├── hackathon-mdt-outcome-proformas.docx  # Input: 50 synthetic MDT cases
+│   └── hackathon-database-prototype.xlsx     # Ground truth schema
+├── output/
+│   └── final_clinical_database.xlsx          # Pipeline output
+├── validation/
+│   ├── validate_final.py            # Validation script
+│   ├── gold_standard_template.json  # Annotated ground truth for case 0
+│   └── Final Validation             # Full results and methodology
+├── docs/
+│   ├── Problem_Statement.md         # Clinical problem brief
+│   ├── specification.md             # Technical specification
+│   └── *.png                        # Input/output format examples
+└── iterations/
+    ├── README.md                    # Summary of all 13 approaches tried
+    └── v0/ through v12/             # Full code and outputs per iteration
+```
+
+---
+
+## Running the Pipeline
+
+```bash
+pip install anthropic python-docx openpyxl pandas tqdm
+
+# Set your Anthropic API key in src/config.py
+
+# Step 1: Convert Word doc pages to images
+python src/split_and_image.py
+
+# Step 2: Extract structured JSON from each case image
+python src/stage1_claude_vision.py
+
+# Step 3: Map JSON to the 88-column Excel schema
+python src/stage2_clinical_reasoning_auditor.py
+```
+
+---
+
+## Development Approach
+
+The pipeline went through 13 iterations across two architectural families:
+
+- **v0–v10:** Python-docx based extraction using progressively more sophisticated NLP — regex, MedSPaCy NER, sentence embeddings, and longitudinal patient linking. Best result: 1,102 cells at high recall.
+- **v11–v12:** Vision-based architecture. Rendered document pages as images and used a multimodal LLM (Claude) for extraction, bypassing all docx parsing complexity. Added a clinical reasoning layer in v12 to handle timeline disambiguation.
+
+See [`iterations/README.md`](iterations/README.md) for a full breakdown of each approach and its results.
+
+---
+
+## Tech Stack
+
+- **Python** — `python-docx`, `pandas`, `openpyxl`, `sentence-transformers`, `medspacy`
+- **Anthropic Claude** — claude-3-haiku (vision extraction), claude-3-5-sonnet (reasoning)
+- **Validation** — fuzzy matching, exact match, hallucination detection via source provenance tracing
+
+---
+
+*Data: 100% synthetic, anonymised. NHS numbers prefixed NNN. Built as part of the Clinical AI Hackathon, March 2026.*
