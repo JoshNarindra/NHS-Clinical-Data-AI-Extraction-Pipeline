@@ -1,3 +1,5 @@
+![Clinical AI Hackathon](digital_screen_1.jpg)
+
 ## Problem Statement - by Dr Anita Wale
 
 So this is the clinical problem: 
