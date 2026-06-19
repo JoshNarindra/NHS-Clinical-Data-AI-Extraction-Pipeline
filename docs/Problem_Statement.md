@@ -1,5 +1,3 @@
-<img src="docs/digital_screen_1.jpg" alt="Clinical AI Hackathon" width="80%">
-
 ## Problem Statement - by Dr Anita Wale
 
 So this is the clinical problem: 
